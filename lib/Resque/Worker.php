@@ -1,6 +1,9 @@
 <?php
 declare(ticks = 1);
 
+use Resque\Reserver\ReserverInterface;
+use Psr\Log\LoggerInterface;
+
 /**
  * Resque worker that handles checking queues for jobs, fetching them
  * off the queues, running them and handling the result.
@@ -51,6 +54,9 @@ class Resque_Worker
 	 */
 	private $child = null;
 
+	/** @var ReserverInterface */
+	private $reserver;
+
     /**
      * Instantiate a new worker, given a list of queues that it should be working
      * on. The list of queues should be supplied in the priority that they should
@@ -60,20 +66,23 @@ class Resque_Worker
      * order. You can easily add new queues dynamically and have them worked on using
      * this method.
      *
+	 * @param ReserverInterface $reserver
+	 * @param LoggerInterface $logger
      * @param string|array $queues String with a single queue name, array with multiple.
      */
-    public function __construct($queues)
+    public function __construct(ReserverInterface $reserver, LoggerInterface $logger, $queues)
     {
-        $this->logger = new Resque_Log();
+		$this->reserver = $reserver;
+        $this->logger   = $logger;
 
-        if(!is_array($queues)) {
+        if (!is_array($queues)) {
             $queues = array($queues);
         }
 
-        $this->queues = $queues;
+        $this->queues   = $queues;
         $this->hostname = php_uname('n');
 
-        $this->id = $this->hostname . ':'.getmypid() . ':' . implode(',', $this->queues);
+        $this->setId($this->hostname . ':'.getmypid() . ':' . implode(',', $this->queues));
     }
 
 	/**
@@ -119,7 +128,7 @@ class Resque_Worker
 
 		list($hostname, $pid, $queues) = explode(':', $workerId, 3);
 		$queues = explode(',', $queues);
-		$worker = new self($queues);
+		$worker = new self($this->reserver, $this->logger, $queues);
 		$worker->setId($workerId);
 		return $worker;
 	}
@@ -142,7 +151,7 @@ class Resque_Worker
 	 *
 	 * @param int $interval How often to check for new jobs across the queues.
 	 */
-	public function work($interval = Resque::DEFAULT_INTERVAL, $blocking = false)
+	public function work($interval = Resque::DEFAULT_INTERVAL)
 	{
 		$this->updateProcLine('Starting');
 		$this->startup();
@@ -154,34 +163,23 @@ class Resque_Worker
 
 			// Attempt to find and reserve a job
 			$job = false;
-			if(!$this->paused) {
-				if($blocking === true) {
-					$this->logger->log(Psr\Log\LogLevel::INFO, 'Starting blocking with timeout of {interval}', array('interval' => $interval));
-					$this->updateProcLine('Waiting for ' . implode(',', $this->queues) . ' with blocking timeout ' . $interval);
-				} else {
-					$this->updateProcLine('Waiting for ' . implode(',', $this->queues) . ' with interval ' . $interval);
-				}
+			if (!$this->paused) {
+				$this->updateProcLine('Waiting for {queues}', ['queues' => $this->queues]);
 
-				$job = $this->reserve($blocking, $interval);
+				$job = $this->reserver->reserve();
+			} else {
+				$this->updateProcLine('Paused');
 			}
 
-			if(!$job) {
+			if (!$job) {
 				// For an interval of 0, break now - helps with unit testing etc
-				if($interval == 0) {
+				if ($interval == 0) {
 					break;
 				}
 
-				if($blocking === false)
-				{
-					// If no job was found, we sleep for $interval before continuing and checking again
-					$this->logger->log(Psr\Log\LogLevel::INFO, 'Sleeping for {interval}', array('interval' => $interval));
-					if($this->paused) {
-						$this->updateProcLine('Paused');
-					}
-					else {
-						$this->updateProcLine('Waiting for ' . implode(',', $this->queues));
-					}
-
+				// If no job was found, we sleep for $interval before continuing and checking again
+				if ($this->reserver->waitAfterReservationAttempt()) {
+					$this->logger->info('Sleeping for {interval}', ['interval' => $interval]);
 					usleep($interval * 1000000);
 				}
 
@@ -247,38 +245,6 @@ class Resque_Worker
 
 		$job->updateStatus(Resque_Job_Status::STATUS_COMPLETE);
 		$this->logger->log(Psr\Log\LogLevel::NOTICE, '{job} has finished', array('job' => $job));
-	}
-
-	/**
-	 * @param  bool            $blocking
-	 * @param  int             $timeout
-	 * @return object|boolean               Instance of Resque_Job if a job is found, false if not.
-	 */
-	public function reserve($blocking = false, $timeout = null)
-	{
-		$queues = $this->queues();
-		if(!is_array($queues)) {
-			return;
-		}
-
-		if($blocking === true) {
-			$job = Resque_Job::reserveBlocking($queues, $timeout);
-			if($job) {
-				$this->logger->log(Psr\Log\LogLevel::INFO, 'Found job on {queue}', array('queue' => $job->queue));
-				return $job;
-			}
-		} else {
-			foreach($queues as $queue) {
-				$this->logger->log(Psr\Log\LogLevel::INFO, 'Checking {queue} for jobs', array('queue' => $queue));
-				$job = Resque_Job::reserve($queue);
-				if($job) {
-					$this->logger->log(Psr\Log\LogLevel::INFO, 'Found job on {queue}', array('queue' => $job->queue));
-					return $job;
-				}
-			}
-		}
-
-		return false;
 	}
 
 	/**
@@ -429,10 +395,10 @@ class Resque_Worker
 	{
 		$workerPids = $this->workerPids();
 		$workers = self::all();
-		foreach($workers as $worker) {
+		foreach ($workers as $worker) {
 			if (is_object($worker)) {
 				list($host, $pid, $queues) = explode(':', (string)$worker, 3);
-				if($host != $this->hostname || in_array($pid, $workerPids) || $pid == getmypid()) {
+				if ($host != $this->hostname || in_array($pid, $workerPids) || $pid == getmypid()) {
 					continue;
 				}
 				$this->logger->log(Psr\Log\LogLevel::INFO, 'Pruning dead worker: {worker}', array('worker' => (string)$worker));

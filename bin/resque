@@ -25,8 +25,18 @@ if (!class_exists('Composer\Autoload\ClassLoader', false)) {
     );
 }
 
-$QUEUE = getenv('QUEUE');
-if(empty($QUEUE)) {
+use Interop\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
+use Resque\Reserver\UnknownReserverException;
+use DI\ContainerBuilder;
+
+$builder = new ContainerBuilder();
+$builder->useAutowiring(false);
+$builder->useAnnotations(false);
+$builder->addDefinitions(__DIR__ . '/../config/config.php');
+$container = $builder->build();
+
+if (empty($container->get('env.queue'))) {
     die("Set QUEUE env var containing the list of queues to work.\n");
 }
 
@@ -36,94 +46,70 @@ if(empty($QUEUE)) {
  *
  * Note: the 'user' part of the DSN URI is required but is not used.
  */
-$REDIS_BACKEND = getenv('REDIS_BACKEND');
-
-// A redis database number
-$REDIS_BACKEND_DB = getenv('REDIS_BACKEND_DB');
-if(!empty($REDIS_BACKEND)) {
-    if (empty($REDIS_BACKEND_DB))
-        Resque::setBackend($REDIS_BACKEND);
-    else
-        Resque::setBackend($REDIS_BACKEND, $REDIS_BACKEND_DB);
+if (!empty($container->get('env.redis.host'))) {
+    if (empty($container->get('env.redis.db'))) {
+        Resque::setBackend($container->get('env.redis.host'), $container->get('env.redis.db'));
+    } else {
+        Resque::setBackend($container->get('env.redis.host'));
+    }
 }
 
-$logLevel = false;
-$LOGGING = getenv('LOGGING');
-$VERBOSE = getenv('VERBOSE');
-$VVERBOSE = getenv('VVERBOSE');
-if(!empty($LOGGING) || !empty($VERBOSE)) {
-    $logLevel = true;
-}
-else if(!empty($VVERBOSE)) {
-    $logLevel = true;
-}
-
-$APP_INCLUDE = getenv('APP_INCLUDE');
-if($APP_INCLUDE) {
-    if(!file_exists($APP_INCLUDE)) {
-        die('APP_INCLUDE ('.$APP_INCLUDE.") does not exist.\n");
+if ($container->get('env.app_include')) {
+    $app_include = $container->get('env.app_include');
+    if (!file_exists($app_include)) {
+        die("APP_INCLUDE (${app_include}) does not exist.\n");
     }
 
-    require_once $APP_INCLUDE;
+    require_once $app_include;
 }
 
-// See if the APP_INCLUDE containes a logger object,
+// See if the APP_INCLUDE contains a logger object,
 // If none exists, fallback to internal logger
-if (!isset($logger) || !is_object($logger)) {
-    $logger = new Resque_Log($logLevel);
+if (isset($logger) && is_object($logger) && ($logger instanceof LoggerInterface)) {
+    $container->set(LoggerInterface::class, $logger);
 }
 
-$BLOCKING = getenv('BLOCKING') !== FALSE;
-
-$interval = 5;
-$INTERVAL = getenv('INTERVAL');
-if(!empty($INTERVAL)) {
-    $interval = $INTERVAL;
+if (!empty($container->get('env.redis.prefix'))) {
+    $logger->info('Prefix set to {prefix}', ['prefix' => $container->get('env.redis.prefix')]);
+    Resque_Redis::prefix($container->get('env.redis.prefix'));
 }
 
-$count = 1;
-$COUNT = getenv('COUNT');
-if(!empty($COUNT) && $COUNT > 1) {
-    $count = $COUNT;
+$reserver = null;
+try {
+    $factory = $container->get('reserver.factory');
+    if ($container->get('env.reserver')) {
+        $reserver = $factory->createFromName($container->get('env.reserver'));
+    } else {
+        $reserver = $factory->createDefault();
+    }
+} catch (UnknownReserverException $exception) {
+    die("Could not create reserver: " . $exception->getMessage());
 }
 
-$PREFIX = getenv('PREFIX');
-if(!empty($PREFIX)) {
-    $logger->log(Psr\Log\LogLevel::INFO, 'Prefix set to {prefix}', array('prefix' => $PREFIX));
-    Resque_Redis::prefix($PREFIX);
-}
-
-if($count > 1) {
-    for($i = 0; $i < $count; ++$i) {
+if ($container->get('env.worker.count') > 1) {
+    for ($i = 0; $i < $container->get('env.worker.count'); ++$i) {
         $pid = Resque::fork();
-        if($pid === false || $pid === -1) {
-            $logger->log(Psr\Log\LogLevel::EMERGENCY, 'Could not fork worker {count}', array('count' => $i));
+        if ($pid === false || $pid === -1) {
+            $logger->emergency('Could not fork worker {count}', ['count' => $i]);
             die();
-        }
-        // Child, start the worker
-        else if(!$pid) {
-            $queues = explode(',', $QUEUE);
-            $worker = new Resque_Worker($queues);
-            $worker->setLogger($logger);
-            $logger->log(Psr\Log\LogLevel::NOTICE, 'Starting worker {worker}', array('worker' => $worker));
-            $worker->work($interval, $BLOCKING);
+        } elseif (!$pid) {
+            $worker = new Resque_Worker($reserver, $logger, $container->get('env.queues'));
+            $logger->notice('Starting worker {worker}', ['worker' => (string)$worker]);
+            $worker->work($container->get('env.worker.check_interval'));
             break;
         }
     }
-}
-// Start a single worker
-else {
-    $queues = explode(',', $QUEUE);
-    $worker = new Resque_Worker($queues);
-    $worker->setLogger($logger);
+} else {
+    // Start a single worker
+    $worker = new Resque_Worker($reserver, $logger, $container->get('env.queues'));
 
-    $PIDFILE = getenv('PIDFILE');
-    if ($PIDFILE) {
-        file_put_contents($PIDFILE, getmypid()) or
-            die('Could not write PID information to ' . $PIDFILE);
+    $pidFile = $container->get('env.worker.pidfile');
+    if ($pidFile) {
+        if (!file_put_contents($pidFile, getmypid())) {
+            die('Could not write PID information to ' . $pidFile);
+        }
     }
 
-    $logger->log(Psr\Log\LogLevel::NOTICE, 'Starting worker {worker}', array('worker' => $worker));
-    $worker->work($interval, $BLOCKING);
+    $logger->notice('Starting worker {worker}', ['worker' => (string)$worker]);
+    $worker->work($container->get('env.worker.check_interval'));
 }
-?>
