@@ -44,13 +44,13 @@ return [
     },
 
     Reserver\QueueOrderReserver::class => DI\object()
-        ->constructor(LoggerInterface::class, DI\get('queues')),
+        ->constructor(DI\get(LoggerInterface::class), DI\get('queues')),
 
     Reserver\BlockingListPopReserver::class => DI\object()
-        ->constructor(LoggerInterface::class, DI\get('queues'), DI\get('env.blpop.timeout')),
+        ->constructor(DI\get(LoggerInterface::class), DI\get('queues'), DI\get('env.blpop.timeout')),
 
     Reserver\RandomOrderReserver::class => DI\object()
-        ->constructor(LoggerInterface::class, DI\get('queues')),
+        ->constructor(DI\get(LoggerInterface::class), DI\get('queues')),
 
     'reserver.factory' => DI\object(Reserver\ReserverFactory::class),
 ];
