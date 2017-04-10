@@ -48,5 +48,5 @@ return [
     Reserver\RandomOrderReserver::class => DI\object()
         ->constructor(LoggerInterface::class, DI\get('queues')),
 
-    'reserver.factory' => Reserver\ReserverFactory::class,
+    'reserver.factory' => DI\object(Reserver\ReserverFactory::class),
 ];
