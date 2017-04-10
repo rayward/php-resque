@@ -17,13 +17,21 @@ class QueueOrderReserver extends AbstractReserver implements ReserverInterface
     public function reserve()
     {
         foreach ($this->getQueues() as $queue) {
-            $this->logger->info('Checking {queue} for jobs', array('queue' => $queue));
+            $this->logger->info('Checking queue {queue} for jobs', [
+                'queue'    => $queue,
+                'reserver' => get_class($this),
+            ]);
+
             $job = Resque_Job::reserve($queue);
             if ($job) {
-                $this->logger->info('Found job on {queue}', array('queue' => $job->queue));
+                $this->logger->info('Found job on queue {queue}', [
+                    'queue'    => $queue,
+                    'reserver' => get_class($this),
+                ]);
                 return $job;
             }
         }
+
         return null;
     }
 }

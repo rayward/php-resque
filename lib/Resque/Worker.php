@@ -144,6 +144,16 @@ class Resque_Worker
 	}
 
 	/**
+	 * Gets the id of this worker.
+	 *
+	 * @return string
+	 */
+	public function getId()
+	{
+		return $this->id;
+	}
+
+	/**
 	 * The primary loop for a worker which when called on an instance starts
 	 * the worker's life cycle.
 	 *
@@ -153,6 +163,11 @@ class Resque_Worker
 	 */
 	public function work($interval = Resque::DEFAULT_INTERVAL)
 	{
+		$this->logger->notice('Starting worker {worker}', [
+			'worker'   => $this->getId(),
+			'reserver' => get_class($this->reserver),
+		]);
+
 		$this->updateProcLine('Starting');
 		$this->startup();
 

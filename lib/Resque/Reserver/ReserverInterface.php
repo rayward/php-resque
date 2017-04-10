@@ -21,7 +21,7 @@ interface ReserverInterface
     public function reserve();
 
     /**
-     * If there was no job available to reserver, should the worker wait before attempting to reserve a job again?
+     * If there was no job available to reserve, should the worker wait before attempting to reserve a job again?
      *
      * @return bool
      */

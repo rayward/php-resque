@@ -94,15 +94,11 @@ if ($container->get('env.worker.count') > 1) {
             die();
         } elseif (!$pid) {
             $worker = new Resque_Worker($reserver, $logger, $container->get('env.queue'));
-            $logger->notice('Starting worker {worker}', ['worker' => (string)$worker]);
             $worker->work($container->get('env.worker.check_interval'));
             break;
         }
     }
 } else {
-    // Start a single worker
-    $worker = new Resque_Worker($reserver, $logger, $container->get('env.queue'));
-
     $pidFile = $container->get('env.worker.pidfile');
     if ($pidFile) {
         if (!file_put_contents($pidFile, getmypid())) {
@@ -110,6 +106,7 @@ if ($container->get('env.worker.count') > 1) {
         }
     }
 
-    $logger->notice('Starting worker {worker}', ['worker' => (string)$worker]);
+    // Start a single worker
+    $worker = new Resque_Worker($reserver, $logger, $container->get('env.queue'));
     $worker->work($container->get('env.worker.check_interval'));
 }
