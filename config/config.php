@@ -5,17 +5,17 @@ use Psr\Log\LoggerInterface;
 use Resque\Reserver;
 
 return [
-    'env.redis.host'                  => DI\env('REDIS_BACKEND'),
+    'env.redis.host'                  => DI\env('REDIS_BACKEND', null),
     'env.redis.db'                    => DI\env('REDIS_BACKEND_DB', null),
-    'env.redis.prefix'                => DI\env('PREFIX'),
-    'env.app_include'                 => DI\env('APP_INCLUDE'),
+    'env.redis.prefix'                => DI\env('PREFIX', ''),
+    'env.app_include'                 => DI\env('APP_INCLUDE', null),
     'env.worker.count'                => DI\env('COUNT', 1),
     'env.worker.check_interval'       => DI\env('INTERVAL', 5),
-    'env.worker.pidfile'              => DI(\env('PIDFILE')),
+    'env.worker.pidfile'              => DI\env('PIDFILE', null),
     'env.blpop.timeout'               => DI\env('BLPOP_TIMEOUT', DI\get('env.worker.check_interval')),
-    'env.reserver'                    => DI\env('RESERVER'),
-    'env.reserver.use_blocking'       => DI\env('BLOCKING'),
-    'env.queue'                       => DI\env('QUEUE'),
+    'env.reserver'                    => DI\env('RESERVER', null),
+    'env.reserver.use_blocking'       => DI\env('BLOCKING', null),
+    'env.queue'                       => DI\env('QUEUE', null),
 
     'queues'                      => function (ContainerInterface $c) {
         $queues = $c->get('env.queue');
