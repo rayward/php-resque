@@ -14,7 +14,7 @@ class QueueOrderReserver extends AbstractReserver implements ReserverInterface
     /**
      * {@inheritDoc}
      */
-    public function reserve(array $queues)
+    public function reserve()
     {
         foreach ($this->getQueues() as $queue) {
             $this->logger->info('Checking {queue} for jobs', array('queue' => $queue));
