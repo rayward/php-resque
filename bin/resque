@@ -93,7 +93,7 @@ if ($container->get('env.worker.count') > 1) {
             $logger->emergency('Could not fork worker {count}', ['count' => $i]);
             die();
         } elseif (!$pid) {
-            $worker = new Resque_Worker($reserver, $logger, $container->get('env.queues'));
+            $worker = new Resque_Worker($reserver, $logger, $container->get('env.queue'));
             $logger->notice('Starting worker {worker}', ['worker' => (string)$worker]);
             $worker->work($container->get('env.worker.check_interval'));
             break;
@@ -101,7 +101,7 @@ if ($container->get('env.worker.count') > 1) {
     }
 } else {
     // Start a single worker
-    $worker = new Resque_Worker($reserver, $logger, $container->get('env.queues'));
+    $worker = new Resque_Worker($reserver, $logger, $container->get('env.queue'));
 
     $pidFile = $container->get('env.worker.pidfile');
     if ($pidFile) {
