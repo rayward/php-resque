@@ -67,6 +67,8 @@ if ($container->get('env.app_include')) {
 // If none exists, fallback to internal logger
 if (isset($logger) && is_object($logger) && ($logger instanceof LoggerInterface)) {
     $container->set(LoggerInterface::class, $logger);
+} else {
+    $logger = $container->get(LoggerInterface::class);
 }
 
 if (!empty($container->get('env.redis.prefix'))) {
