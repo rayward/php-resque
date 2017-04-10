@@ -89,7 +89,7 @@ class Resque_Worker
 	 * Return all workers known to Resque as instantiated instances.
 	 * @return array
 	 */
-	public static function all()
+	private function all()
 	{
 		$workers = Resque::redis()->smembers('workers');
 		if(!is_array($workers)) {
@@ -98,7 +98,7 @@ class Resque_Worker
 
 		$instances = array();
 		foreach($workers as $workerId) {
-			$instances[] = self::find($workerId);
+			$instances[] = $this->find($workerId);
 		}
 		return $instances;
 	}
@@ -109,7 +109,7 @@ class Resque_Worker
 	 * @param string $workerId ID of the worker.
 	 * @return boolean True if the worker exists, false if not.
 	 */
-	public static function exists($workerId)
+	private function exists($workerId)
 	{
 		return (bool)Resque::redis()->sismember('workers', $workerId);
 	}
@@ -120,9 +120,9 @@ class Resque_Worker
 	 * @param string $workerId The ID of the worker.
 	 * @return Resque_Worker Instance of the worker. False if the worker does not exist.
 	 */
-	public static function find($workerId)
+	private function find($workerId)
 	{
-		if(!self::exists($workerId) || false === strpos($workerId, ":")) {
+		if (!$this->exists($workerId) || false === strpos($workerId, ":")) {
 			return false;
 		}
 
@@ -248,28 +248,6 @@ class Resque_Worker
 	}
 
 	/**
-	 * Return an array containing all of the queues that this worker should use
-	 * when searching for jobs.
-	 *
-	 * If * is found in the list of queues, every queue will be searched in
-	 * alphabetic order. (@see $fetch)
-	 *
-	 * @param boolean $fetch If true, and the queue is set to *, will fetch
-	 * all queue names from redis.
-	 * @return array Array of associated queues.
-	 */
-	public function queues($fetch = true)
-	{
-		if(!in_array('*', $this->queues) || $fetch == false) {
-			return $this->queues;
-		}
-
-		$queues = Resque::queues();
-		sort($queues);
-		return $queues;
-	}
-
-	/**
 	 * Perform necessary actions to start a worker.
 	 */
 	private function startup()
@@ -391,10 +369,10 @@ class Resque_Worker
 	 * server may have been killed and the Resque workers did not die gracefully
 	 * and therefore leave state information in Redis.
 	 */
-	public function pruneDeadWorkers()
+	private function pruneDeadWorkers()
 	{
 		$workerPids = $this->workerPids();
-		$workers = self::all();
+		$workers = $this->all();
 		foreach ($workers as $worker) {
 			if (is_object($worker)) {
 				list($host, $pid, $queues) = explode(':', (string)$worker, 3);
@@ -437,7 +415,7 @@ class Resque_Worker
 	 */
 	public function unregisterWorker()
 	{
-		if(is_object($this->currentJob)) {
+		if (is_object($this->currentJob)) {
 			$this->currentJob->fail(new Resque_Job_DirtyExitException);
 		}
 
