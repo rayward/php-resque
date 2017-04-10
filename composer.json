@@ -22,7 +22,8 @@
 		"ext-pcntl": "*",
 		"colinmollenhour/credis": "~1.7",
 		"psr/log": "^1.0.0",
-		"php-di/php-di": "^5.4"
+		"php-di/php-di": "^5.4",
+		"psr/container": "^1.0"
 	},
 	"suggest": {
 		"ext-proctitle": "Allows php-resque to rename the title of UNIX processes to show the status of a worker.",
