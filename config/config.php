@@ -5,6 +5,10 @@ use Psr\Log\LoggerInterface;
 use Resque\Reserver;
 
 return [
+    ContainerInterface::class         => function (ContainerInterface $c) {
+        return $c;
+    },
+
     'env.redis.host'                  => DI\env('REDIS_BACKEND', null),
     'env.redis.db'                    => DI\env('REDIS_BACKEND_DB', null),
     'env.redis.prefix'                => DI\env('PREFIX', ''),
