@@ -421,8 +421,8 @@ class Resque_Worker
 	 */
 	public function registerWorker()
 	{
-		Resque::redis()->sadd('workers', (string)$this);
-		Resque::redis()->set('worker:' . (string)$this . ':started', strftime('%a %b %d %H:%M:%S %Z %Y'));
+		Resque::redis()->sadd('workers', $this->getId());
+		Resque::redis()->set('worker:' . $this->getId() . ':started', strftime('%a %b %d %H:%M:%S %Z %Y'));
 	}
 
 	/**
@@ -434,7 +434,7 @@ class Resque_Worker
 			$this->currentJob->fail(new Resque_Job_DirtyExitException);
 		}
 
-		$id = (string)$this;
+		$id = $this->getId();
 		Resque::redis()->srem('workers', $id);
 		Resque::redis()->del('worker:' . $id);
 		Resque::redis()->del('worker:' . $id . ':started');
@@ -468,8 +468,8 @@ class Resque_Worker
 	{
 		$this->currentJob = null;
 		Resque_Stat::incr('processed');
-		Resque_Stat::incr('processed:' . (string)$this);
-		Resque::redis()->del('worker:' . (string)$this);
+		Resque_Stat::incr('processed:' . $this->getId());
+		Resque::redis()->del('worker:' . $this->getId());
 	}
 
 	/**
@@ -479,7 +479,7 @@ class Resque_Worker
 	 */
 	public function __toString()
 	{
-		return $this->id;
+		return $this->getId();
 	}
 
 	/**
@@ -489,7 +489,7 @@ class Resque_Worker
 	 */
 	public function job()
 	{
-		$job = Resque::redis()->get('worker:' . $this);
+		$job = Resque::redis()->get('worker:' . $this->getId());
 		if(!$job) {
 			return array();
 		}
@@ -506,16 +506,6 @@ class Resque_Worker
 	 */
 	public function getStat($stat)
 	{
-		return Resque_Stat::get($stat . ':' . $this);
-	}
-
-	/**
-	 * Inject the logging object into the worker
-	 *
-	 * @param Psr\Log\LoggerInterface $logger
-	 */
-	public function setLogger(Psr\Log\LoggerInterface $logger)
-	{
-		$this->logger = $logger;
+		return Resque_Stat::get($stat . ':' . $this->getId());
 	}
 }
