@@ -31,7 +31,7 @@ class ReserverFactory
     {
         $className = ucwords($name, '_');
         $className = str_replace('_', '', $className);
-        $className = __NAMESPACE__ . '\\' . $className;
+        $className = __NAMESPACE__ . '\\' . $className . 'Reserver';
 
         if (!$this->container->has($className)) {
             throw new UnknownReserverException($className);
