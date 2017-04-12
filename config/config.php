@@ -20,7 +20,7 @@ return [
     'env.blpop.timeout'         => DI\env('BLPOP_TIMEOUT', DI\get('env.worker.check_interval')),
     'env.reserver'              => DI\env('RESERVER', null),
     'env.reserver.use_blocking' => DI\env('BLOCKING', null),
-    'env.loggging.level'        => DI\env('LOG_LEVEL', LogLevel::INFO),
+    'env.logging.level'         => DI\env('LOG_LEVEL', LogLevel::INFO),
     'env.queue'                 => DI\env('QUEUE', null),
 
     'queues' => function (ContainerInterface $c) {
@@ -37,14 +37,14 @@ return [
     },
 
     LoggerInterface::class => function (ContainerInterface $c) {
-        $dateFormat = "H:i:s Y-m-d";
-        $format     = "[%level_name%] %message%\n";
-        if (getenv('LOGGING') || getenv('VERBOSE') || getenv('VVERBOSE')) {
-            $format = "[%level_name%] [%datetime%] %message%\n";
-        }
+        // $dateFormat = "H:i:s Y-m-d";
+        // $format     = "[%level_name%] %message%\n";
+        // if (getenv('LOGGING') || getenv('VERBOSE') || getenv('VVERBOSE')) {
+        //     $format = "[%level_name%] [%datetime%] %message%\n";
+        // }
 
         $stream = new StreamHandler(STDOUT, $c->get('env.logging.level'));
-        $stream->setFormatter(new LineFormatter($format, $dateFormat));
+        //$stream->setFormatter(new LineFormatter($format, $dateFormat));
 
         $logger = new Logger('php-resque');
         $logger->pushHandler($stream);
