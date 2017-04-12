@@ -7,7 +7,7 @@ use Psr\Log\LogLevel;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 use Monolog\Formatter\LineFormatter;
-use Monolog\Processor\PsrLogProcessor;
+use Monolog\Processor\PsrLogMessageProcessor;
 
 return [
     'env.redis.host'            => DI\env('REDIS_BACKEND', null),

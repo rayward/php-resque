@@ -179,7 +179,7 @@ class Resque_Worker
 			// Attempt to find and reserve a job
 			$job = false;
 			if (!$this->paused) {
-				$this->updateProcLine('Waiting for {queues}', ['queues' => $this->queues]);
+				$this->updateProcLine('Waiting for ' . implode(',', $this->queues));
 
 				$job = $this->reserver->reserve();
 			} else {
