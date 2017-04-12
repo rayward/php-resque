@@ -46,4 +46,14 @@ abstract class AbstractReserver implements ReserverInterface
     {
         return true;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getName()
+    {
+        $name = get_class($this);
+        $name = str_replace(__NAMESPACE__, '', $name);
+        return trim($name, '\\');
+    }
 }

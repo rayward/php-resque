@@ -26,4 +26,11 @@ interface ReserverInterface
      * @return bool
      */
     public function waitAfterReservationAttempt();
+
+    /**
+     * Gets a friendly name of this reserver.
+     *
+     * @return string
+     */
+    public function getName();
 }

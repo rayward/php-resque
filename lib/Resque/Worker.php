@@ -163,9 +163,9 @@ class Resque_Worker
 	 */
 	public function work($interval = Resque::DEFAULT_INTERVAL)
 	{
-		$this->logger->notice('Starting worker {worker}', [
+		$this->logger->notice('Starting worker {worker} using reserver {reserver}', [
 			'worker'   => $this->getId(),
-			'reserver' => get_class($this->reserver),
+			'reserver' => $this->reserver->getName(),
 		]);
 
 		$this->updateProcLine('Starting');
@@ -194,14 +194,14 @@ class Resque_Worker
 
 				// If no job was found, we sleep for $interval before continuing and checking again
 				if ($this->reserver->waitAfterReservationAttempt()) {
-					$this->logger->info('Sleeping for {interval}', ['interval' => $interval]);
+					$this->logger->debug('Sleeping for {interval}', ['interval' => $interval]);
 					usleep($interval * 1000000);
 				}
 
 				continue;
 			}
 
-			$this->logger->log(Psr\Log\LogLevel::NOTICE, 'Starting work on {job}', array('job' => $job));
+			$this->logger->notice('Starting work on {job}', array('job' => $job));
 			Resque_Event::trigger('beforeFork', $job);
 			$this->workingOn($job);
 
@@ -211,7 +211,7 @@ class Resque_Worker
 			if ($this->child === 0 || $this->child === false) {
 				$status = 'Processing ' . $job->queue . ' since ' . strftime('%F %T');
 				$this->updateProcLine($status);
-				$this->logger->log(Psr\Log\LogLevel::INFO, $status);
+				$this->logger->info($status);
 				$this->perform($job);
 				if ($this->child === 0) {
 					exit(0);
@@ -222,7 +222,7 @@ class Resque_Worker
 				// Parent process, sit and wait
 				$status = 'Forked ' . $this->child . ' at ' . strftime('%F %T');
 				$this->updateProcLine($status);
-				$this->logger->log(Psr\Log\LogLevel::INFO, $status);
+				$this->logger->info($status);
 
 				// Wait until the child process finishes before continuing
 				pcntl_wait($status);

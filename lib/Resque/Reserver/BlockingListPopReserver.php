@@ -37,9 +37,9 @@ class BlockingListPopReserver extends AbstractReserver implements ReserverInterf
     {
         $job = Resque_Job::reserveBlocking($this->getQueues(), $this->timeout);
         if ($job) {
-            $this->logger->info('Found job on queue {queue}', [
+            $this->logger->info('[{reserver}] Found job on queue {queue}', [
                 'queue'    => $job->queue,
-                'reserver' => get_class($this),
+                'reserver' => $this->getName(),
             ]);
             return $job;
         }
